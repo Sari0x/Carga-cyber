@@ -23,7 +23,11 @@ const clave = (sku: string, slot: number) => `${sku}|${slot}`;
 
 type FilaEditada = Omit<FilaGenerada, "atributos"> & {
   atributos: (FilaGenerada["atributos"][number] & { manual: boolean })[];
+  titulo: string;
+  tituloEditado: boolean;
 };
+
+const MAX_TITULO = 70;
 
 function parsearSkus(texto: string): string[] {
   return [...new Set(texto.split(/[\s,;]+/).map(normSku).filter(Boolean))];
@@ -44,6 +48,8 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
   const [verAjustes, setVerAjustes] = useState(false);
   /** Atributos cambiados a mano en la vista previa: clave "sku|slot" -> valor. */
   const [manuales, setManuales] = useState<Record<string, string>>({});
+  /** Títulos cambiados a mano: sku -> título. */
+  const [titulos, setTitulos] = useState<Record<string, string>>({});
 
   const rubro = rubros.find((r) => r.id === rubroId) ?? null;
   const pegados = useMemo(() => parsearSkus(textoSkus), [textoSkus]);
@@ -64,18 +70,26 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
     const columna = rubro.atributos.map((a) =>
       rubro.headers.findIndex((h) => Number(norm(h).match(/^atributo (\d+)/)?.[1]) === a.slot),
     );
+    const colTitulo = rubro.headers.findIndex((h) => norm(h) === "titulo");
     return productos.map((p) => {
       const f = generarFila(p, rubro, ajustes, cw);
       const valores = [...f.valores];
+      const titulo = titulos[f.sku] ?? p.nombre;
+      let avisos = f.avisos;
+      if (titulos[f.sku] !== undefined) {
+        if (colTitulo >= 0) valores[colTitulo] = titulo;
+        avisos = avisos.filter((a) => !a.startsWith("Título de "));
+        if (titulo.length > MAX_TITULO) avisos = [`Título de ${titulo.length} caracteres (máx. ${MAX_TITULO})`, ...avisos];
+      }
       const atributos = f.atributos.map((a, i) => {
         const manual = manuales[clave(f.sku, rubro.atributos[i].slot)];
         if (manual === undefined) return { ...a, manual: false };
         if (columna[i] >= 0) valores[columna[i]] = manual;
         return { ...a, valor: manual, manual: true };
       });
-      return { ...f, valores, atributos };
+      return { ...f, valores, atributos, avisos, titulo, tituloEditado: titulos[f.sku] !== undefined };
     });
-  }, [productos, rubro, ajustes, contadoWeb, manuales]);
+  }, [productos, rubro, ajustes, contadoWeb, manuales, titulos]);
 
   const visibles = useMemo(() => {
     const q = norm(busqueda);
@@ -87,7 +101,7 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
   const conAvisos = incluidas.filter(
     (f) => f.avisos.length || f.atributos.some((a) => !a.manual && a.estado !== "ok" && a.estado !== "vacio"),
   ).length;
-  const cantidadManuales = Object.keys(manuales).length;
+  const cantidadManuales = Object.keys(manuales).length + Object.keys(titulos).length;
 
   function editarAtributo(skus: string[], slot: number, valor: string | null) {
     setManuales((m) => {
@@ -115,6 +129,7 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
       setBuscados(pegados);
       setExcluidos(new Set());
       setManuales({});
+      setTitulos({});
       setContadoWeb(null);
       setFallidas(new Set());
     } catch (e) {
@@ -332,8 +347,14 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
               {cantidadManuales > 0 && (
                 <>
                   {" "}
-                  · {cantidadManuales} {cantidadManuales === 1 ? "atributo editado" : "atributos editados"} a mano{" "}
-                  <button className="link" onClick={() => setManuales({})}>
+                  · {cantidadManuales} {cantidadManuales === 1 ? "dato editado" : "datos editados"} a mano{" "}
+                  <button
+                    className="link"
+                    onClick={() => {
+                      setManuales({});
+                      setTitulos({});
+                    }}
+                  >
                     deshacer
                   </button>
                 </>
@@ -405,7 +426,40 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
                         <input type="checkbox" checked={!excluidos.has(f.sku)} onChange={() => alternar(f.sku)} />
                       </td>
                       <td className="mono">{f.sku}</td>
-                      <td className="titulo">{col("titulo")}</td>
+                      <td className={`titulo ${f.titulo.length > MAX_TITULO ? "largo" : ""} ${f.tituloEditado ? "editado" : ""}`}>
+                        <textarea
+                          rows={f.titulo.length > 45 ? 2 : 1}
+                          value={f.titulo}
+                          onChange={(e) =>
+                            setTitulos((t) => {
+                              const n = { ...t };
+                              if (e.target.value === productos.find((p) => p.sku === f.sku)?.nombre) delete n[f.sku];
+                              else n[f.sku] = e.target.value;
+                              return n;
+                            })
+                          }
+                        />
+                        <div className="contador small">
+                          {f.titulo.length}/{MAX_TITULO}
+                          {f.tituloEditado && (
+                            <>
+                              {" · "}
+                              <button
+                                className="link"
+                                onClick={() =>
+                                  setTitulos((t) => {
+                                    const n = { ...t };
+                                    delete n[f.sku];
+                                    return n;
+                                  })
+                                }
+                              >
+                                volver al del E3
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
                       <td className="num">{col("precio anterior")}</td>
                       <td className="num">{col("precio en oferta")}</td>
                       <td className="num">{col("precio sin impuestos")}</td>

@@ -321,7 +321,38 @@ thead th {
 }
 
 td.titulo {
-  min-width: 260px;
+  min-width: 300px;
+}
+
+td.titulo textarea {
+  width: 100%;
+  resize: vertical;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 2px 4px;
+}
+
+td.titulo textarea:hover,
+td.titulo textarea:focus {
+  border-color: var(--border);
+}
+
+td.titulo .contador {
+  color: var(--muted);
+  text-align: right;
+}
+
+td.titulo.largo {
+  background: var(--bad-bg);
+}
+
+td.titulo.largo .contador {
+  color: var(--bad-fg);
+  font-weight: 600;
+}
+
+td.titulo.editado:not(.largo) {
+  background: var(--man-bg);
 }
 
 tr.off td {
