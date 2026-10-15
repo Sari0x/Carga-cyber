@@ -6,7 +6,7 @@ Genera los Excel de megaofertas (Cyber Monday / Hot Sale) a partir del export **
 
 0. **Base de productos:** importá el export de Productos E3 (completo o parcial). Se guarda en Supabase por SKU con
    precios, imágenes, filtros y ficha técnica; volvé a importarlo para actualizar.
-1. **Rubros y mapeos → Nuevo rubro desde plantilla:** subí la plantilla de megaofertas del rubro (la que trae la hoja
+1. **Rubros y mapeos → Importar plantillas:** subí una o varias plantillas de megaofertas a la vez (las que traen la hoja
    "Ayuda 1"). La app guarda las columnas, la categoría y los atributos con sus valores permitidos. En el editor
    elegís las categorías de la tienda del rubro y "Sugerir todas las reglas" las prueba contra esos productos.
 2. **Editar reglas:** cada atributo usa una regla:

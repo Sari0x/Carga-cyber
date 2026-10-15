@@ -168,6 +168,46 @@ export function resolver(atr: Atributo, p: ProductoE3): Resultado {
   }
 }
 
+const PALABRAS_VACIAS = new Set(["para", "con", "los", "las", "del", "otros", "otras", "mas", "y", "de", "e"]);
+
+/** Raíz aproximada de una palabra: "calefones" -> "calefon", "televisores" -> "televisor". */
+function raiz(palabra: string): string {
+  return palabra.replace(/(es|s)$/, "");
+}
+
+function palabrasDe(texto: string): string[] {
+  return norm(texto)
+    .split(/[^a-z0-9]+/)
+    .filter((p) => p.length >= 4 && !PALABRAS_VACIAS.has(p))
+    .map(raiz);
+}
+
+function parecidas(a: string, b: string): boolean {
+  if (a === b) return true;
+  let i = 0;
+  while (i < a.length && i < b.length && a[i] === b[i]) i++;
+  return i >= 6 && i >= 0.75 * Math.min(a.length, b.length);
+}
+
+/**
+ * Categorías de la tienda cuyo camino comparte palabras con el nombre del rubro
+ * ("Calefones y Termotanques" -> "agua-caliente/calefones/a-gas", "agua-caliente/termotanques/...").
+ */
+export function sugerirCategorias(nombres: string[], categorias: string[]): string[] {
+  const claves = [...new Set(nombres.flatMap(palabrasDe))];
+  if (!claves.length) return [];
+  const coincide = (c: string, desde: number) => {
+    const palabras = c
+      .split("/")
+      .slice(desde)
+      .flatMap((tramo) => palabrasDe(tramo.replace(/-/g, " ")));
+    return claves.some((k) => palabras.some((p) => parecidas(k, p)));
+  };
+  // Primero por subcategorías; el primer tramo ("television", "agua-caliente") es muy general.
+  const finas = categorias.filter((c) => coincide(c, 1));
+  return finas.length ? finas : categorias.filter((c) => coincide(c, 0));
+}
+
 /** Valores distintos que aparecen en las fuentes, con cuántos productos los tienen. */
 export function valoresDistintos(productos: ProductoE3[], fuentes: string[]): { valor: string; cantidad: number }[] {
   const cuenta = new Map<string, { valor: string; cantidad: number }>();
