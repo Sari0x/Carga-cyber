@@ -15,7 +15,8 @@ Genera los Excel de megaofertas (Cyber Monday / Hot Sale) a partir del export **
    - *Rango numérico*: toma el número del campo ("60 Lts" → 60) y lo ubica en el rango.
    - *Valor fijo* o *Dejar vacío*.
    Si nada coincide se usa el valor de "Si no coincide" (normalmente "Más").
-3. **Generar archivo:** pegá la lista de SKUs, elegí el rubro, revisá la vista previa y
+3. **Generar archivo:** pegá la lista de SKUs, elegí el rubro, revisá la vista previa (cada atributo se puede cambiar
+   a mano desde su celda, o en todos los productos visibles con "Poner a todos…") y
    descargá el Excel.
 
 Columnas fijas (misma lógica que el Apps Script anterior):

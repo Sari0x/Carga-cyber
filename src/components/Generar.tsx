@@ -17,6 +17,14 @@ interface Props {
 }
 
 /** SKUs pegados (uno por renglón, o separados por espacio, coma o punto y coma), sin repetir y en orden. */
+const AUTO = "__auto__";
+
+const clave = (sku: string, slot: number) => `${sku}|${slot}`;
+
+type FilaEditada = Omit<FilaGenerada, "atributos"> & {
+  atributos: (FilaGenerada["atributos"][number] & { manual: boolean })[];
+};
+
 function parsearSkus(texto: string): string[] {
   return [...new Set(texto.split(/[\s,;]+/).map(normSku).filter(Boolean))];
 }
@@ -34,6 +42,8 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
   const [estado, setEstado] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [verAjustes, setVerAjustes] = useState(false);
+  /** Atributos cambiados a mano en la vista previa: clave "sku|slot" -> valor. */
+  const [manuales, setManuales] = useState<Record<string, string>>({});
 
   const rubro = rubros.find((r) => r.id === rubroId) ?? null;
   const pegados = useMemo(() => parsearSkus(textoSkus), [textoSkus]);
@@ -48,11 +58,24 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
     return productos.filter((p) => !rubro.categorias.includes(p.categoria)).map((p) => p.sku);
   }, [productos, rubro]);
 
-  const filas: FilaGenerada[] = useMemo(() => {
+  const filas: FilaEditada[] = useMemo(() => {
     if (!rubro) return [];
     const cw = ajustes.fuentePrecio === "firebase" ? contadoWeb : null;
-    return productos.map((p) => generarFila(p, rubro, ajustes, cw));
-  }, [productos, rubro, ajustes, contadoWeb]);
+    const columna = rubro.atributos.map((a) =>
+      rubro.headers.findIndex((h) => Number(norm(h).match(/^atributo (\d+)/)?.[1]) === a.slot),
+    );
+    return productos.map((p) => {
+      const f = generarFila(p, rubro, ajustes, cw);
+      const valores = [...f.valores];
+      const atributos = f.atributos.map((a, i) => {
+        const manual = manuales[clave(f.sku, rubro.atributos[i].slot)];
+        if (manual === undefined) return { ...a, manual: false };
+        if (columna[i] >= 0) valores[columna[i]] = manual;
+        return { ...a, valor: manual, manual: true };
+      });
+      return { ...f, valores, atributos };
+    });
+  }, [productos, rubro, ajustes, contadoWeb, manuales]);
 
   const visibles = useMemo(() => {
     const q = norm(busqueda);
@@ -62,8 +85,20 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
 
   const incluidas = filas.filter((f) => !excluidos.has(f.sku));
   const conAvisos = incluidas.filter(
-    (f) => f.avisos.length || f.atributos.some((a) => a.estado !== "ok" && a.estado !== "vacio"),
+    (f) => f.avisos.length || f.atributos.some((a) => !a.manual && a.estado !== "ok" && a.estado !== "vacio"),
   ).length;
+  const cantidadManuales = Object.keys(manuales).length;
+
+  function editarAtributo(skus: string[], slot: number, valor: string | null) {
+    setManuales((m) => {
+      const n = { ...m };
+      for (const sku of skus) {
+        if (valor === null) delete n[clave(sku, slot)];
+        else n[clave(sku, slot)] = valor;
+      }
+      return n;
+    });
+  }
 
   function cambiar<K extends keyof Ajustes>(k: K, v: Ajustes[K]) {
     setAjustes({ ...ajustes, [k]: v });
@@ -79,6 +114,7 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
       setProductos(encontrados);
       setBuscados(pegados);
       setExcluidos(new Set());
+      setManuales({});
       setContadoWeb(null);
       setFallidas(new Set());
     } catch (e) {
@@ -175,7 +211,13 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
         <div className="field">
           <span className="label">Rubro</span>
           {rubros.length ? (
-            <select value={rubroId} onChange={(e) => setRubroId(e.target.value)}>
+            <select
+              value={rubroId}
+              onChange={(e) => {
+                setRubroId(e.target.value);
+                setManuales({});
+              }}
+            >
               <option value="">Elegí un rubro…</option>
               {rubros.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -287,6 +329,15 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
             <span>
               <strong>{incluidas.length}</strong> de {filas.length} productos ·{" "}
               <span className={conAvisos ? "warn-text" : ""}>{conAvisos} para revisar</span>
+              {cantidadManuales > 0 && (
+                <>
+                  {" "}
+                  · {cantidadManuales} {cantidadManuales === 1 ? "atributo editado" : "atributos editados"} a mano{" "}
+                  <button className="link" onClick={() => setManuales({})}>
+                    deshacer
+                  </button>
+                </>
+              )}
             </span>
             <input placeholder="Buscar…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
             <button className="btn" disabled={ocupado || !incluidas.length} onClick={validar}>
@@ -316,7 +367,30 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
                   <th className="num">Oferta</th>
                   <th className="num">Sin imp.</th>
                   {rubro.atributos.map((a) => (
-                    <th key={a.slot}>{a.nombre}</th>
+                    <th key={a.slot}>
+                      <div>{a.nombre}</div>
+                      <select
+                        className="todos"
+                        value=""
+                        title="Cambia este atributo en todos los productos visibles"
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          editarAtributo(
+                            visibles.filter((f) => !excluidos.has(f.sku)).map((f) => f.sku),
+                            a.slot,
+                            v === AUTO ? null : v,
+                          );
+                        }}
+                      >
+                        <option value="">Poner a todos…</option>
+                        <option value={AUTO}>(automático)</option>
+                        {a.opciones.map((o) => (
+                          <option key={o} value={o}>
+                            {o}
+                          </option>
+                        ))}
+                      </select>
+                    </th>
                   ))}
                   <th>Imágenes</th>
                   <th>Avisos</th>
@@ -335,15 +409,44 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
                       <td className="num">{col("precio anterior")}</td>
                       <td className="num">{col("precio en oferta")}</td>
                       <td className="num">{col("precio sin impuestos")}</td>
-                      {f.atributos.map((a, i) => (
-                        <td
-                          key={i}
-                          className={`attr ${a.estado}`}
-                          title={a.origen ? `Del E3: ${a.origen}` : "Sin dato en el E3"}
-                        >
-                          {a.valor || "—"}
-                        </td>
-                      ))}
+                      {f.atributos.map((a, i) => {
+                        const atr = rubro.atributos[i];
+                        const opciones =
+                          a.valor && !atr.opciones.includes(a.valor) ? [a.valor, ...atr.opciones] : atr.opciones;
+                        return (
+                          <td
+                            key={i}
+                            className={`attr ${a.manual ? "manual" : a.estado}`}
+                            title={
+                              (a.manual ? "Editado a mano. " : "") +
+                              (a.origen ? `Del E3: ${a.origen}` : "Sin dato en el E3")
+                            }
+                          >
+                            {opciones.length ? (
+                              <select
+                                value={a.valor}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  editarAtributo([f.sku], atr.slot, v === AUTO ? null : v);
+                                }}
+                              >
+                                {a.manual && <option value={AUTO}>(volver al automático)</option>}
+                                <option value="">—</option>
+                                {opciones.map((o) => (
+                                  <option key={o} value={o}>
+                                    {o}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                value={a.valor}
+                                onChange={(e) => editarAtributo([f.sku], atr.slot, e.target.value)}
+                              />
+                            )}
+                          </td>
+                        );
+                      })}
                       <td>
                         <div className="thumbs">
                           {f.imagenes.map((u) => (
@@ -363,8 +466,11 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
           <p className="muted small">
             Atributos: <span className="attr ok pill">ok</span> regla definida ·{" "}
             <span className="attr revisar pill">revisar</span> coincidencia aproximada ·{" "}
-            <span className="attr sin-coincidencia pill">sin coincidencia</span> no se encontró valor. Pasá el mouse
-            para ver el dato del E3. Ajustá las reglas en &quot;Rubros y mapeos&quot;.
+            <span className="attr sin-coincidencia pill">sin coincidencia</span> no se encontró valor ·{" "}
+            <span className="attr manual pill">editado</span> cambiado a mano. Cambiá cualquier atributo desde su
+            celda, o en todos los visibles con &quot;Poner a todos…&quot; (sirve combinado con el buscador). Los
+            cambios a mano valen solo para este archivo; para que queden, ajustá las reglas en &quot;Rubros y
+            mapeos&quot;.
           </p>
         </>
       )}

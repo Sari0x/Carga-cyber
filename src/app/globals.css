@@ -13,6 +13,8 @@
   --bad-bg: #fde8e8;
   --bad-fg: #a3191f;
   --hover: #f0f2f5;
+  --man-bg: #e3edff;
+  --man-fg: #1d4fa8;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -30,6 +32,8 @@
     --bad-bg: #3d1517;
     --bad-fg: #ff8f94;
     --hover: #222831;
+    --man-bg: #142640;
+    --man-fg: #8db8ff;
   }
 }
 
@@ -337,6 +341,40 @@ tr.off td {
 .attr.sin-coincidencia {
   background: var(--bad-bg);
   color: var(--bad-fg);
+}
+
+.attr.manual {
+  background: var(--man-bg);
+  color: var(--man-fg);
+}
+
+td.attr select,
+td.attr input {
+  background: transparent;
+  border: 1px solid transparent;
+  color: inherit;
+  padding: 2px 4px;
+  max-width: 220px;
+}
+
+td.attr select:hover,
+td.attr input:hover,
+td.attr select:focus,
+td.attr input:focus {
+  border-color: var(--border);
+}
+
+td.attr select option {
+  background: var(--card);
+  color: var(--fg);
+}
+
+th select.todos {
+  margin-top: 4px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-weight: normal;
+  max-width: 180px;
 }
 
 .pill {
