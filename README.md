@@ -24,8 +24,8 @@ Columnas fijas (misma lógica que el Apps Script anterior):
 | Columna | Valor |
 |---|---|
 | Link previo / Link | `https://www.novogar.com.ar/tienda/` + `Índices` (+ UTM en Link) |
-| Precio en oferta | `Precio` del E3 o `contadoWeb` de Firebase, terminado en 9. Los SKU `-1` usan siempre el E3 |
-| Precio anterior | `Precio de Lista` del E3 o % sobre la oferta, terminado en 9 |
+| Precio en oferta | contado (`Precio` del E3 o `contadoWeb` de Firebase; los SKU `-1` usan siempre el E3) + % configurable (15% por defecto), terminado en 9 |
+| Precio anterior | precio en oferta + % configurable (15% por defecto) o `Precio de Lista` del E3, terminado en 9 |
 | Precio sin impuestos | oferta / (1 + `Impuestos` / 100) |
 | Imágenes | hasta 3, vía wsrv.nl a 500x375 jpg, empezando por la principal |
 | Financiación, retiro, envíos, etc. | configurables en "Precios y valores fijos" |

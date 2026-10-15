@@ -272,6 +272,12 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
                 <option value="e3">&quot;Precio&quot; del E3</option>
                 <option value="firebase">contadoWeb de Firebase</option>
               </select>
+              <span className="label">+ % sobre el contado</span>
+              <input
+                type="number"
+                value={ajustes.porcentajeOferta}
+                onChange={(e) => cambiar("porcentajeOferta", Number(e.target.value))}
+              />
               {ajustes.fuentePrecio === "firebase" && (
                 <button className="btn small" disabled={ocupado || !productos.length} onClick={traerFirebase}>
                   {contadoWeb ? "Volver a consultar Firebase" : "Consultar Firebase"}
@@ -285,7 +291,7 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
                 onChange={(e) => cambiar("precioAnterior", e.target.value as Ajustes["precioAnterior"])}
               >
                 <option value="lista">&quot;Precio de Lista&quot; del E3</option>
-                <option value="porcentaje">% sobre la oferta</option>
+                <option value="porcentaje">% sobre el precio en oferta</option>
               </select>
               {ajustes.precioAnterior === "porcentaje" && (
                 <input
@@ -331,6 +337,8 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
               <input value={ajustes.unidad} onChange={(e) => cambiar("unidad", e.target.value)} />
             </label>
             <p className="muted small wide">
+              Precio en oferta = contado + {ajustes.porcentajeOferta}%.{" "}
+              {ajustes.precioAnterior === "porcentaje" ? `Precio anterior = oferta + ${ajustes.porcentajeAnterior}%. ` : ""}
               Precio sin impuestos = oferta / (1 + Impuestos del E3). Precios redondeados para terminar en 9. Los
               SKU terminados en -1 usan siempre el precio del E3. Los ajustes se guardan al descargar.
             </p>

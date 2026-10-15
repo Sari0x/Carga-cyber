@@ -28,7 +28,7 @@ function precios(p: ProductoE3, ajustes: Ajustes, contadoWeb: Map<string, number
   const esOferta = /-1$/.test(p.sku);
   const base =
     ajustes.fuentePrecio === "firebase" && !esOferta ? (contadoWeb?.get(skuFirebase(p.sku)) ?? 0) : p.precio;
-  const oferta = terminaEn9(base);
+  const oferta = terminaEn9(base * (1 + ajustes.porcentajeOferta / 100));
   const anterior =
     ajustes.precioAnterior === "lista"
       ? terminaEn9(p.precioLista)

@@ -38,6 +38,8 @@ export interface Rubro {
 export interface Ajustes {
   utm: string;
   fuentePrecio: "e3" | "firebase";
+  /** % que se suma al precio contado para obtener el precio en oferta. */
+  porcentajeOferta: number;
   precioAnterior: "lista" | "porcentaje";
   porcentajeAnterior: number;
   ofertaActiva: number;
@@ -54,7 +56,8 @@ export interface Ajustes {
 export const AJUSTES_DEFAULT: Ajustes = {
   utm: "?utm_source=producto_cybermonday&utm_medium=referral&utm_campaign=cybermonday2026",
   fuentePrecio: "e3",
-  precioAnterior: "lista",
+  porcentajeOferta: 15,
+  precioAnterior: "porcentaje",
   porcentajeAnterior: 15,
   ofertaActiva: 0,
   financiacion: 24,
