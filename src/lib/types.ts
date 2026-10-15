@@ -31,6 +31,8 @@ export interface Rubro {
   headers: string[];
   defaults: Record<string, string>;
   atributos: Atributo[];
+  /** Categorías de la tienda (Índices sin el último tramo) de donde salen los productos del rubro. */
+  categorias: string[];
 }
 
 export interface Ajustes {
@@ -69,6 +71,7 @@ export interface ProductoE3 {
   sku: string;
   nombre: string;
   indices: string;
+  categoria: string;
   precio: number;
   precioLista: number;
   impuestos: number;

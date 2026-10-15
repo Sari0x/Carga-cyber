@@ -24,6 +24,28 @@ function imagenesDe(xml: string): string[] {
   return out.map((x) => x.archivo);
 }
 
+/** Columnas pesadas o internas que no sirven para mapear atributos y no se guardan en la base. */
+const COLUMNAS_IGNORADAS = new Set([
+  "Descripción",
+  "Texto",
+  "Keywords",
+  "Imágenes",
+  "Controles Adicionales",
+  "Filtros de Búsqueda",
+  "Meta Descripción",
+  "Meta Título",
+  "Meta Keywords",
+  "Meta Idioma",
+  "Meta Autor",
+]);
+const MAX_LARGO_CAMPO = 500;
+
+/** "agua-caliente/termotanques/electricos/slug" -> "agua-caliente/termotanques/electricos". */
+export function categoriaDeIndices(indices: string): string {
+  const partes = indices.replace(/^\/+|\/+$/g, "").split("/");
+  return partes.length > 1 ? partes.slice(0, -1).join("/") : "";
+}
+
 export async function leerE3(file: File): Promise<ArchivoE3> {
   const wb = await leerLibro(file);
   const rows = filas(wb.Sheets[wb.SheetNames[0]]);
@@ -44,12 +66,14 @@ export async function leerE3(file: File): Promise<ArchivoE3> {
     const campos: Record<string, string> = {};
     headers.forEach((h, i) => {
       const v = String(r[i] ?? "").trim();
-      if (h && v) campos[h] = v;
+      if (h && v && !COLUMNAS_IGNORADAS.has(h) && v.length <= MAX_LARGO_CAMPO) campos[h] = v;
     });
+    const indices = get(r, "Índices") || get(r, "Url").replace(/^.*?\/tienda\//, "");
     productos.push({
       sku,
       nombre: get(r, "Nombre"),
-      indices: get(r, "Índices") || get(r, "Url").replace(/^.*?\/tienda\//, ""),
+      indices,
+      categoria: categoriaDeIndices(indices),
       precio: aNumero(get(r, "Precio")),
       precioLista: aNumero(get(r, "Precio de Lista")),
       impuestos: aNumero(get(r, "Impuestos")) || 21,

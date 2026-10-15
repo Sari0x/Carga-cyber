@@ -3,19 +3,18 @@
 import { useCallback, useEffect, useState } from "react";
 import Generar from "@/components/Generar";
 import Rubros from "@/components/Rubros";
-import { leerE3 } from "@/lib/excel";
-import { leerAjustes, listarRubros } from "@/lib/datos";
-import { AJUSTES_DEFAULT, type Ajustes, type ArchivoE3, type Rubro } from "@/lib/types";
+import Base from "@/components/Base";
+import { leerAjustes, listarRubros, resumenBase } from "@/lib/datos";
+import { AJUSTES_DEFAULT, type Ajustes, type Rubro } from "@/lib/types";
 
-type Tab = "generar" | "rubros";
+type Tab = "generar" | "rubros" | "base";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("generar");
   const [rubros, setRubros] = useState<Rubro[]>([]);
   const [ajustes, setAjustes] = useState<Ajustes>(AJUSTES_DEFAULT);
-  const [e3, setE3] = useState<ArchivoE3 | null>(null);
+  const [base, setBase] = useState<{ total: number; actualizado: string | null } | null>(null);
   const [error, setError] = useState("");
-  const [cargandoE3, setCargandoE3] = useState(false);
 
   const recargarRubros = useCallback(async () => {
     try {
@@ -25,47 +24,36 @@ export default function Home() {
     }
   }, []);
 
+  const recargarBase = useCallback(async () => {
+    try {
+      setBase(await resumenBase());
+    } catch (e) {
+      setError("No pude leer la base de productos: " + (e as Error).message);
+    }
+  }, []);
+
   useEffect(() => {
     recargarRubros();
+    recargarBase();
     leerAjustes()
       .then(setAjustes)
       .catch((e) => setError("No pude leer los ajustes: " + (e as Error).message));
-  }, [recargarRubros]);
-
-  async function importarE3(file: File) {
-    setCargandoE3(true);
-    setError("");
-    try {
-      setE3(await leerE3(file));
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setCargandoE3(false);
-    }
-  }
+  }, [recargarRubros, recargarBase]);
 
   return (
     <div className="app">
       <header className="top">
         <div>
           <h1>Carga Cyber</h1>
-          <p className="muted">Genera los Excel de megaofertas a partir del export de Productos E3.</p>
+          <p className="muted">Genera los Excel de megaofertas a partir de la base de productos E3.</p>
         </div>
-        <label className="e3-box">
-          <span className="label">Productos E3</span>
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={(ev) => ev.target.files?.[0] && importarE3(ev.target.files[0])}
-          />
-          <span className="muted small">
-            {cargandoE3
-              ? "Leyendo…"
-              : e3
-                ? `${e3.nombreArchivo}: ${e3.productos.length} productos`
-                : "Todavía no importaste un E3"}
-          </span>
-        </label>
+        <span className="muted small">
+          {base === null
+            ? "Leyendo base…"
+            : `Base: ${base.total} productos${
+                base.actualizado ? ` · actualizada ${new Date(base.actualizado).toLocaleString("es-AR")}` : ""
+              }`}
+        </span>
       </header>
 
       <nav className="tabs">
@@ -75,6 +63,9 @@ export default function Home() {
         <button className={tab === "rubros" ? "on" : ""} onClick={() => setTab("rubros")}>
           Rubros y mapeos ({rubros.length})
         </button>
+        <button className={tab === "base" ? "on" : ""} onClick={() => setTab("base")}>
+          Base de productos
+        </button>
       </nav>
 
       {error && (
@@ -83,11 +74,17 @@ export default function Home() {
         </div>
       )}
 
-      {tab === "generar" ? (
-        <Generar e3={e3} rubros={rubros} ajustes={ajustes} setAjustes={setAjustes} irARubros={() => setTab("rubros")} />
-      ) : (
-        <Rubros e3={e3} rubros={rubros} recargar={recargarRubros} />
+      {tab === "generar" && (
+        <Generar
+          rubros={rubros}
+          ajustes={ajustes}
+          setAjustes={setAjustes}
+          baseVacia={base?.total === 0}
+          irA={setTab}
+        />
       )}
+      {tab === "rubros" && <Rubros rubros={rubros} recargar={recargarRubros} />}
+      {tab === "base" && <Base resumen={base} recargar={recargarBase} />}
     </div>
   );
 }

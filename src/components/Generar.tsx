@@ -1,33 +1,32 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Ajustes, ArchivoE3, Rubro } from "@/lib/types";
+import type { Ajustes, ProductoE3, Rubro } from "@/lib/types";
 import { generarFila, validarImagenes, type FilaGenerada } from "@/lib/generar";
 import { contadoWebPorSku } from "@/lib/precios";
 import { descargarXlsx } from "@/lib/excel";
-import { guardarAjustes } from "@/lib/datos";
+import { buscarPorSkus, guardarAjustes, normSku } from "@/lib/datos";
 import { norm } from "@/lib/texto";
 
 interface Props {
-  e3: ArchivoE3 | null;
   rubros: Rubro[];
   ajustes: Ajustes;
   setAjustes: (a: Ajustes) => void;
-  irARubros: () => void;
+  baseVacia: boolean;
+  irA: (tab: "rubros" | "base") => void;
 }
 
-function parsearSkus(texto: string): Set<string> {
-  return new Set(
-    texto
-      .split(/[\s,;]+/)
-      .map((s) => s.trim().toUpperCase())
-      .filter(Boolean),
-  );
+/** SKUs pegados (uno por renglón, o separados por espacio, coma o punto y coma), sin repetir y en orden. */
+function parsearSkus(texto: string): string[] {
+  return [...new Set(texto.split(/[\s,;]+/).map(normSku).filter(Boolean))];
 }
 
-export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: Props) {
+export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }: Props) {
   const [rubroId, setRubroId] = useState("");
-  const [filtroSkus, setFiltroSkus] = useState("");
+  const [textoSkus, setTextoSkus] = useState("");
+  const [buscados, setBuscados] = useState<string[]>([]);
+  const [productos, setProductos] = useState<ProductoE3[]>([]);
+  const [buscando, setBuscando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [excluidos, setExcluidos] = useState<Set<string>>(new Set());
   const [contadoWeb, setContadoWeb] = useState<Map<string, number> | null>(null);
@@ -37,18 +36,17 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
   const [verAjustes, setVerAjustes] = useState(false);
 
   const rubro = rubros.find((r) => r.id === rubroId) ?? null;
-  const skus = useMemo(() => parsearSkus(filtroSkus), [filtroSkus]);
-
-  const productos = useMemo(() => {
-    if (!e3) return [];
-    return e3.productos.filter((p) => !skus.size || skus.has(p.sku.toUpperCase()));
-  }, [e3, skus]);
+  const pegados = useMemo(() => parsearSkus(textoSkus), [textoSkus]);
 
   const faltantes = useMemo(() => {
-    if (!e3 || !skus.size) return [];
-    const hay = new Set(e3.productos.map((p) => p.sku.toUpperCase()));
-    return [...skus].filter((s) => !hay.has(s));
-  }, [e3, skus]);
+    const hay = new Set(productos.map((p) => normSku(p.sku)));
+    return buscados.filter((s) => !hay.has(s));
+  }, [productos, buscados]);
+
+  const fueraDelRubro = useMemo(() => {
+    if (!rubro?.categorias?.length) return [];
+    return productos.filter((p) => !rubro.categorias.includes(p.categoria)).map((p) => p.sku);
+  }, [productos, rubro]);
 
   const filas: FilaGenerada[] = useMemo(() => {
     if (!rubro) return [];
@@ -69,6 +67,25 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
 
   function cambiar<K extends keyof Ajustes>(k: K, v: Ajustes[K]) {
     setAjustes({ ...ajustes, [k]: v });
+  }
+
+  async function buscar() {
+    setBuscando(true);
+    setEstado("");
+    try {
+      const encontrados = await buscarPorSkus(pegados);
+      const orden = new Map(pegados.map((s, i) => [s, i]));
+      encontrados.sort((a, b) => (orden.get(normSku(a.sku)) ?? 0) - (orden.get(normSku(b.sku)) ?? 0));
+      setProductos(encontrados);
+      setBuscados(pegados);
+      setExcluidos(new Set());
+      setContadoWeb(null);
+      setFallidas(new Set());
+    } catch (e) {
+      setEstado("No pude buscar los productos: " + (e as Error).message);
+    } finally {
+      setBuscando(false);
+    }
   }
 
   async function traerFirebase() {
@@ -115,13 +132,46 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
     setExcluidos(s);
   }
 
-  if (!e3) {
-    return <div className="card empty">Importá el Excel de Productos E3 arriba para empezar.</div>;
+  if (baseVacia) {
+    return (
+      <div className="card empty">
+        La base de productos está vacía.{" "}
+        <button className="link" onClick={() => irA("base")}>
+          Importá el export de Productos E3
+        </button>{" "}
+        para empezar.
+      </div>
+    );
   }
 
   return (
     <div className="stack">
       <div className="card grid2">
+        <div className="field">
+          <span className="label">SKUs para el archivo</span>
+          <textarea
+            rows={6}
+            placeholder={"Pegá la lista de SKUs, uno por renglón (también sirve copiar una columna del Excel).\nCE-14L-GN\nTEP60D-1\n…"}
+            value={textoSkus}
+            onChange={(e) => setTextoSkus(e.target.value)}
+          />
+          <div className="inline">
+            <button className="btn primary" disabled={!pegados.length || buscando} onClick={buscar}>
+              {buscando ? "Buscando…" : `Buscar ${pegados.length || ""} SKU${pegados.length === 1 ? "" : "s"}`}
+            </button>
+            {buscados.length > 0 && (
+              <span className="muted small">
+                {productos.length} de {buscados.length} encontrados en la base
+              </span>
+            )}
+          </div>
+          {faltantes.length > 0 && (
+            <span className="small warn-text">
+              No están en la base ({faltantes.length}): {faltantes.slice(0, 30).join(", ")}
+              {faltantes.length > 30 ? "…" : ""}
+            </span>
+          )}
+        </div>
         <div className="field">
           <span className="label">Rubro</span>
           {rubros.length ? (
@@ -136,24 +186,15 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
           ) : (
             <p className="muted">
               No hay rubros todavía.{" "}
-              <button className="link" onClick={irARubros}>
+              <button className="link" onClick={() => irA("rubros")}>
                 Crear uno desde una plantilla de cyber
               </button>
             </p>
           )}
-        </div>
-        <div className="field">
-          <span className="label">Filtrar por SKU (opcional)</span>
-          <textarea
-            rows={2}
-            placeholder="Pegá SKUs separados por espacio, coma o renglón. Vacío = todos."
-            value={filtroSkus}
-            onChange={(e) => setFiltroSkus(e.target.value)}
-          />
-          {faltantes.length > 0 && (
+          {fueraDelRubro.length > 0 && (
             <span className="small warn-text">
-              No están en el E3: {faltantes.slice(0, 15).join(", ")}
-              {faltantes.length > 15 ? "…" : ""}
+              {fueraDelRubro.length} SKU no son de las categorías del rubro: {fueraDelRubro.slice(0, 15).join(", ")}
+              {fueraDelRubro.length > 15 ? "…" : ""}
             </span>
           )}
         </div>
@@ -175,7 +216,7 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
                 <option value="firebase">contadoWeb de Firebase</option>
               </select>
               {ajustes.fuentePrecio === "firebase" && (
-                <button className="btn small" disabled={ocupado} onClick={traerFirebase}>
+                <button className="btn small" disabled={ocupado || !productos.length} onClick={traerFirebase}>
                   {contadoWeb ? "Volver a consultar Firebase" : "Consultar Firebase"}
                 </button>
               )}
@@ -240,7 +281,7 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
         )}
       </div>
 
-      {rubro && (
+      {rubro && productos.length > 0 && (
         <>
           <div className="toolbar">
             <span>
@@ -327,6 +368,8 @@ export default function Generar({ e3, rubros, ajustes, setAjustes, irARubros }: 
           </p>
         </>
       )}
+      {!rubro && productos.length > 0 && <div className="alert">Elegí el rubro para ver la vista previa.</div>}
+      {estado && !(rubro && productos.length > 0) && <div className="alert">{estado}</div>}
     </div>
   );
 }

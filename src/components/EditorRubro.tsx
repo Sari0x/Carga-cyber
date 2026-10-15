@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { ArchivoE3, Atributo, Rango, Regla, ReglaTipo, Rubro } from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
+import type { ArchivoE3, Atributo, ProductoE3, Rango, Regla, ReglaTipo, Rubro } from "@/lib/types";
 import { rangoDeOpcion, resolver, sugerirRegla, valoresDistintos } from "@/lib/mapeo";
-import { guardarRubro } from "@/lib/datos";
+import { columnasDe, guardarRubro, listarCategorias, productosDeCategorias } from "@/lib/datos";
 import { norm } from "@/lib/texto";
 
 interface Props {
   rubro: Rubro;
-  e3: ArchivoE3 | null;
   volver: () => void;
   recargar: () => Promise<void>;
 }
@@ -21,23 +20,72 @@ const TIPOS: { v: ReglaTipo; label: string; ayuda: string }[] = [
   { v: "vacio", label: "Dejar vacío", ayuda: "No completa el atributo." },
 ];
 
-export default function EditorRubro({ rubro, e3, volver, recargar }: Props) {
+export default function EditorRubro({ rubro, volver, recargar }: Props) {
   const [nombre, setNombre] = useState(rubro.nombre);
   const [atributos, setAtributos] = useState<Atributo[]>(rubro.atributos);
+  const [categorias, setCategorias] = useState<string[]>(rubro.categorias ?? []);
+  const [todas, setTodas] = useState<{ categoria: string; cantidad: number }[]>([]);
+  const [filtroCat, setFiltroCat] = useState("");
+  const [productos, setProductos] = useState<ProductoE3[]>([]);
+  const [cargando, setCargando] = useState(false);
   const [abierto, setAbierto] = useState<number>(rubro.atributos[0]?.slot ?? 0);
   const [estado, setEstado] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [sucio, setSucio] = useState(false);
+
+  useEffect(() => {
+    listarCategorias()
+      .then(setTodas)
+      .catch((e) => setEstado("No pude leer las categorías: " + (e as Error).message));
+  }, []);
+
+  useEffect(() => {
+    let vigente = true;
+    setCargando(true);
+    productosDeCategorias(categorias)
+      .then((p) => vigente && setProductos(p))
+      .catch((e) => vigente && setEstado("No pude leer los productos: " + (e as Error).message))
+      .finally(() => vigente && setCargando(false));
+    return () => {
+      vigente = false;
+    };
+  }, [categorias]);
+
+  const muestra: ArchivoE3 | null = useMemo(
+    () => (productos.length ? { nombreArchivo: "base", headers: columnasDe(productos), productos } : null),
+    [productos],
+  );
+
+  const categoriasVisibles = useMemo(() => {
+    const q = norm(filtroCat);
+    return todas.filter((c) => c.categoria && (categorias.includes(c.categoria) || !q || norm(c.categoria).includes(q)));
+  }, [todas, filtroCat, categorias]);
+
+  function alternarCategoria(c: string) {
+    setCategorias(categorias.includes(c) ? categorias.filter((x) => x !== c) : [...categorias, c].sort());
+    setSucio(true);
+  }
 
   function setRegla(slot: number, regla: Regla) {
     setAtributos(atributos.map((a) => (a.slot === slot ? { ...a, regla } : a)));
     setSucio(true);
   }
 
+  function sugerirTodas() {
+    if (!muestra) return;
+    if (
+      atributos.some((a) => a.regla.tipo !== "vacio") &&
+      !window.confirm("Esto reemplaza las reglas de todos los atributos por las sugeridas. ¿Seguir?")
+    )
+      return;
+    setAtributos(atributos.map((a) => ({ ...a, regla: sugerirRegla(a, muestra.headers, muestra.productos) })));
+    setSucio(true);
+  }
+
   async function guardar() {
     setGuardando(true);
     try {
-      await guardarRubro({ ...rubro, nombre: nombre.trim() || rubro.nombre, atributos });
+      await guardarRubro({ ...rubro, nombre: nombre.trim() || rubro.nombre, atributos, categorias });
       await recargar();
       setSucio(false);
       setEstado("Guardado.");
@@ -72,17 +120,42 @@ export default function EditorRubro({ rubro, e3, volver, recargar }: Props) {
         </button>
       </div>
       {estado && <div className="alert">{estado}</div>}
-      {!e3 && (
-        <div className="alert warn">
-          Importá un E3 arriba para ver los campos disponibles, los valores que aparecen y probar las reglas.
+
+      <div className="card">
+        <h2>Categorías del rubro</h2>
+        <p className="muted small">
+          Elegí de qué categorías de la tienda salen los productos de este rubro. Se usan para sugerir las reglas,
+          ver qué valores aparecen en la base y avisar si pegás un SKU de otra categoría.
+        </p>
+        <input placeholder="Filtrar categorías, ej. termotanques" value={filtroCat} onChange={(e) => setFiltroCat(e.target.value)} />
+        <div className="cats">
+          {categoriasVisibles.map((c) => (
+            <label key={c.categoria} className={categorias.includes(c.categoria) ? "on" : ""}>
+              <input
+                type="checkbox"
+                checked={categorias.includes(c.categoria)}
+                onChange={() => alternarCategoria(c.categoria)}
+              />
+              {c.categoria} <span className="muted">({c.cantidad})</span>
+            </label>
+          ))}
+          {!todas.length && <span className="muted small">La base de productos está vacía.</span>}
         </div>
-      )}
+        <div className="inline top-gap">
+          <span className="muted small">
+            {cargando ? "Cargando productos…" : `${productos.length} productos de la base en estas categorías.`}
+          </span>
+          <button className="btn" disabled={!muestra || cargando} onClick={sugerirTodas}>
+            Sugerir todas las reglas
+          </button>
+        </div>
+      </div>
 
       {atributos.map((a) => (
         <EditorAtributo
           key={a.slot}
           atributo={a}
-          e3={e3}
+          e3={muestra}
           abierto={abierto === a.slot}
           abrir={() => setAbierto(abierto === a.slot ? 0 : a.slot)}
           setRegla={(r) => setRegla(a.slot, r)}
@@ -245,7 +318,7 @@ function EditorAtributo({
               <span className="label">Valores del E3 → opción del cyber</span>
               {distintos.length === 0 && (
                 <p className="muted small">
-                  {e3 ? "Ningún producto tiene valor en esos campos." : "Importá un E3 para ver los valores."}
+                  {e3 ? "Ningún producto tiene valor en esos campos." : "Elegí las categorías del rubro para ver los valores de la base."}
                 </p>
               )}
               <table className="mini">

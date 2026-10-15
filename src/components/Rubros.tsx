@@ -1,19 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import type { ArchivoE3, Rubro } from "@/lib/types";
+import type { Rubro } from "@/lib/types";
 import { leerPlantilla, type PlantillaLeida } from "@/lib/excel";
 import { borrarRubro, crearRubro } from "@/lib/datos";
-import { sugerirRegla } from "@/lib/mapeo";
 import EditorRubro from "./EditorRubro";
 
 interface Props {
-  e3: ArchivoE3 | null;
   rubros: Rubro[];
   recargar: () => Promise<void>;
 }
 
-export default function Rubros({ e3, rubros, recargar }: Props) {
+export default function Rubros({ rubros, recargar }: Props) {
   const [editando, setEditando] = useState<string | null>(null);
   const [plantilla, setPlantilla] = useState<PlantillaLeida | null>(null);
   const [nombre, setNombre] = useState("");
@@ -38,16 +36,12 @@ export default function Rubros({ e3, rubros, recargar }: Props) {
     if (!plantilla) return;
     setOcupado(true);
     try {
-      const headers = e3?.headers ?? [];
-      const atributos = plantilla.ayudas[hoja].atributos.map((a) => ({
-        ...a,
-        regla: headers.length ? sugerirRegla(a, headers, e3?.productos) : a.regla,
-      }));
       const r = await crearRubro({
         nombre: nombre.trim() || plantilla.nombreSugerido,
         headers: plantilla.headers,
         defaults: plantilla.defaults,
-        atributos,
+        atributos: plantilla.ayudas[hoja].atributos,
+        categorias: [],
       });
       await recargar();
       setPlantilla(null);
@@ -71,7 +65,7 @@ export default function Rubros({ e3, rubros, recargar }: Props) {
 
   const actual = rubros.find((r) => r.id === editando);
   if (actual) {
-    return <EditorRubro key={actual.id} rubro={actual} e3={e3} volver={() => setEditando(null)} recargar={recargar} />;
+    return <EditorRubro key={actual.id} rubro={actual} volver={() => setEditando(null)} recargar={recargar} />;
   }
 
   return (
@@ -82,10 +76,8 @@ export default function Rubros({ e3, rubros, recargar }: Props) {
         <h2>Nuevo rubro desde plantilla</h2>
         <p className="muted small">
           Subí la plantilla de megaofertas del rubro (la que trae la hoja &quot;Ayuda 1&quot; con los atributos y sus
-          valores permitidos).
-          {e3
-            ? " Como ya importaste un E3, sugiero las reglas de mapeo automáticamente."
-            : " Si importás antes el E3, sugiero las reglas de mapeo automáticamente."}
+          valores permitidos). Después elegís de qué categorías de la tienda son sus productos y la app sugiere las
+          reglas de mapeo con los datos de la base.
         </p>
         <input type="file" accept=".xlsx,.xls" onChange={(ev) => ev.target.files?.[0] && leer(ev.target.files[0])} />
         {plantilla && (
@@ -134,6 +126,11 @@ export default function Rubros({ e3, rubros, recargar }: Props) {
                 <div>
                   <strong>{r.nombre}</strong>
                   <div className="muted small">{r.atributos.map((a) => a.nombre).join(" · ")}</div>
+                  <div className={`small ${r.categorias?.length ? "muted" : "warn-text"}`}>
+                    {r.categorias?.length
+                      ? `Categorías: ${r.categorias.join(", ")}`
+                      : "Sin categorías elegidas: abrí el editor para elegirlas y sugerir las reglas."}
+                  </div>
                 </div>
                 <div className="row-actions">
                   <button className="btn" onClick={() => setEditando(r.id)}>

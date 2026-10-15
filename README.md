@@ -4,6 +4,8 @@ Genera los Excel de megaofertas (Cyber Monday / Hot Sale) a partir del export **
 
 ## Cómo se usa
 
+0. **Base de productos:** importá el export de Productos E3 (completo o parcial). Se guarda en Supabase por SKU con
+   precios, imágenes, filtros y ficha técnica; volvé a importarlo para actualizar.
 1. **Rubros y mapeos → Nuevo rubro desde plantilla:** subí la plantilla de megaofertas del rubro (la que trae la hoja
    "Ayuda 1"). La app guarda las columnas, la categoría y los atributos con sus valores permitidos. Si antes importaste
    un E3, sugiere una regla para cada atributo probándola contra los productos.
@@ -13,7 +15,7 @@ Genera los Excel de megaofertas (Cyber Monday / Hot Sale) a partir del export **
    - *Rango numérico*: toma el número del campo ("60 Lts" → 60) y lo ubica en el rango.
    - *Valor fijo* o *Dejar vacío*.
    Si nada coincide se usa el valor de "Si no coincide" (normalmente "Más").
-3. **Generar archivo:** importá el E3, elegí el rubro, filtrá por SKU si hace falta, revisá la vista previa y
+3. **Generar archivo:** pegá la lista de SKUs, elegí el rubro, revisá la vista previa y
    descargá el Excel.
 
 Columnas fijas (misma lógica que el Apps Script anterior):
@@ -41,5 +43,5 @@ NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
-Supabase guarda los rubros (`rubros`) y los ajustes (`ajustes`). La app no tiene login: cualquiera con el link puede
-leer y editar esas dos tablas. Los Excel se procesan en el navegador y no se suben a ningún lado.
+Supabase guarda la base de productos (`productos`), los rubros (`rubros`) y los ajustes (`ajustes`). La app no tiene login: cualquiera con el link puede
+leer y editar esas tablas.

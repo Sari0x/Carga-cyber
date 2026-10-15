@@ -455,3 +455,28 @@ table.mini select,
 table.mini input {
   width: 100%;
 }
+
+.cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 260px;
+  overflow: auto;
+}
+
+.cats label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cats label.on {
+  border-color: var(--accent);
+  background: var(--hover);
+}
