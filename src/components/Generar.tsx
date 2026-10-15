@@ -302,14 +302,14 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
               )}
             </label>
             <label className="field">
-              <span className="label">Precio sin impuestos</span>
-              <select
-                value={ajustes.redondearSinImpuestos ? "1" : "0"}
-                onChange={(e) => cambiar("redondearSinImpuestos", e.target.value === "1")}
-              >
-                <option value="0">Con decimales, sin redondear</option>
-                <option value="1">Redondeado a entero</option>
-              </select>
+              <span className="label">Decimales del precio sin impuestos</span>
+              <input
+                type="number"
+                min={0}
+                max={6}
+                value={ajustes.decimalesSinImpuestos}
+                onChange={(e) => cambiar("decimalesSinImpuestos", Number(e.target.value))}
+              />
             </label>
             <label className="field wide">
               <span className="label">UTM (se agrega al link)</span>
@@ -350,7 +350,10 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
               Precio en oferta = contado + {ajustes.porcentajeOferta}%.{" "}
               {ajustes.precioAnterior === "porcentaje" ? `Precio anterior = oferta + ${ajustes.porcentajeAnterior}%. ` : ""}
               Precio sin impuestos = oferta / (1 + Impuestos del E3)
-              {ajustes.redondearSinImpuestos ? ", redondeado a entero." : ", con todos sus decimales."} Precios redondeados para terminar en 9. Los
+
+              {ajustes.decimalesSinImpuestos > 0
+                ? `, con ${ajustes.decimalesSinImpuestos} decimales.`
+                : ", redondeado a entero."} Precios redondeados para terminar en 9. Los
               SKU terminados en -1 usan siempre el precio del E3. Los ajustes se guardan al descargar.
             </p>
           </div>
