@@ -33,7 +33,8 @@ function precios(p: ProductoE3, ajustes: Ajustes, contadoWeb: Map<string, number
     ajustes.precioAnterior === "lista"
       ? terminaEn9(p.precioLista)
       : terminaEn9(oferta * (1 + ajustes.porcentajeAnterior / 100));
-  const sinImpuestos = Math.round(oferta / (1 + p.impuestos / 100));
+  const neto = oferta / (1 + p.impuestos / 100);
+  const sinImpuestos = ajustes.redondearSinImpuestos ? Math.round(neto) : neto;
   return { oferta, anterior, sinImpuestos };
 }
 

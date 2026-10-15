@@ -40,6 +40,8 @@ export interface Ajustes {
   fuentePrecio: "e3" | "firebase";
   /** % que se suma al precio contado para obtener el precio en oferta. */
   porcentajeOferta: number;
+  /** Redondear el precio sin impuestos a entero; si no, queda con todos sus decimales. */
+  redondearSinImpuestos: boolean;
   precioAnterior: "lista" | "porcentaje";
   porcentajeAnterior: number;
   ofertaActiva: number;
@@ -57,6 +59,7 @@ export const AJUSTES_DEFAULT: Ajustes = {
   utm: "?utm_source=producto_cybermonday&utm_medium=referral&utm_campaign=cybermonday2026",
   fuentePrecio: "e3",
   porcentajeOferta: 15,
+  redondearSinImpuestos: false,
   precioAnterior: "porcentaje",
   porcentajeAnterior: 15,
   ofertaActiva: 0,
