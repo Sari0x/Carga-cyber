@@ -96,6 +96,25 @@ export interface PlantillaLeida {
   ayudas: { hoja: string; atributos: Atributo[] }[];
 }
 
+/**
+ * Algunas plantillas (Licuadoras, Pavas, Batidoras) numeran mal los atributos en la hoja Ayuda:
+ * dicen "Atributo 2, 3, 4" pero las columnas libres son la 1, 2 y 3 (las que no traen "-").
+ * Si los números no caen en columnas libres y la cantidad coincide, se reasignan en orden.
+ */
+export function corregirSlots(
+  atributos: Atributo[],
+  headers: string[],
+  defaults: Record<string, string>,
+): Atributo[] {
+  const libres = headers
+    .filter((h) => /^atributo \d+/.test(norm(h)) && (defaults[h] ?? "").trim() !== "-")
+    .map((h) => Number(norm(h).match(/^atributo (\d+)/)![1]))
+    .sort((a, b) => a - b);
+  if (!libres.length || atributos.every((a) => libres.includes(a.slot))) return atributos;
+  if (libres.length !== atributos.length) return atributos;
+  return [...atributos].sort((a, b) => a.slot - b.slot).map((a, i) => ({ ...a, slot: libres[i] }));
+}
+
 export async function leerPlantilla(file: File): Promise<PlantillaLeida> {
   const wb = await leerLibro(file);
   const hojaPrincipal =
@@ -125,7 +144,7 @@ export async function leerPlantilla(file: File): Promise<PlantillaLeida> {
         .filter(Boolean);
       atributos.push({ slot: Number(m[1]), nombre: m[2].trim(), opciones, regla: reglaVacia() });
     });
-    return { hoja, atributos };
+    return { hoja, atributos: corregirSlots(atributos, headers, defaults) };
   });
 
   const nombreSugerido =
