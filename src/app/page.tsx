@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Generar from "@/components/Generar";
 import Rubros from "@/components/Rubros";
 import Base from "@/components/Base";
-import { leerAjustes, listarRubros, resumenBase } from "@/lib/datos";
+import { guardarAjustes, leerAjustes, listarRubros, resumenBase } from "@/lib/datos";
 import { AJUSTES_DEFAULT, type Ajustes, type Rubro } from "@/lib/types";
 
 type Tab = "generar" | "rubros" | "base";
@@ -39,6 +39,17 @@ export default function Home() {
       .then(setAjustes)
       .catch((e) => setError("No pude leer los ajustes: " + (e as Error).message));
   }, [recargarRubros, recargarBase]);
+
+  // Guarda cada cambio de ajustes (con una pausa corta para no escribir por cada tecla),
+  // así al recargar la página queda la última configuración usada.
+  const guardado = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cambiarAjustes = useCallback((a: Ajustes) => {
+    setAjustes(a);
+    if (guardado.current) clearTimeout(guardado.current);
+    guardado.current = setTimeout(() => {
+      guardarAjustes(a).catch((e) => setError("No pude guardar los ajustes: " + (e as Error).message));
+    }, 400);
+  }, []);
 
   return (
     <div className="app">
@@ -78,7 +89,7 @@ export default function Home() {
         <Generar
           rubros={rubros}
           ajustes={ajustes}
-          setAjustes={setAjustes}
+          setAjustes={cambiarAjustes}
           baseVacia={base?.total === 0}
           irA={setTab}
         />

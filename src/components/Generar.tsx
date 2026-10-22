@@ -5,7 +5,7 @@ import type { Ajustes, ProductoE3, Rubro } from "@/lib/types";
 import { generarFila, validarImagenes, type FilaGenerada } from "@/lib/generar";
 import { contadoWebPorSku } from "@/lib/precios";
 import { descargarXlsx } from "@/lib/excel";
-import { buscarPorSkus, guardarAjustes, normSku } from "@/lib/datos";
+import { buscarPorSkus, normSku } from "@/lib/datos";
 import { norm } from "@/lib/texto";
 
 interface Props {
@@ -173,7 +173,6 @@ export default function Generar({ rubros, ajustes, setAjustes, baseVacia, irA }:
     const fecha = new Date().toISOString().slice(0, 10);
     const nombre = `megaofertas - ${rubro.nombre} - ${fecha}.xlsx`.replace(/[\\/:*?"<>|]/g, "-");
     descargarXlsx(nombre, rubro.headers, incluidas.map((f) => f.valores), rubro.atributos);
-    guardarAjustes(ajustes).catch(() => {});
   }
 
   function alternar(sku: string) {
