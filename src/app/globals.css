@@ -549,3 +549,37 @@ table.mini input {
   border-color: var(--accent);
   background: var(--hover);
 }
+
+.precio.cambio {
+  background: var(--rev-bg);
+  color: var(--rev-fg);
+}
+
+.precio.recalculo {
+  background: var(--man-bg);
+  color: var(--man-fg);
+}
+
+.precio.sin-precio {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+
+.precio.igual {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.tachado {
+  text-decoration: line-through;
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.ok-text {
+  color: var(--ok-fg);
+}
+
+.bad-text {
+  color: var(--bad-fg);
+}

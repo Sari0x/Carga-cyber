@@ -19,6 +19,11 @@ Genera los Excel de megaofertas (Cyber Monday / Hot Sale) a partir del export **
    a mano desde su celda, o en todos los productos visibles con "Poner a todos…") y
    descargá el Excel.
 
+4. **Revisar precios:** subí la planilla de precios (columnas SKU, PRECIO WEB, PRECIO ANTERIOR, PRECIO OFERTA, IVA,
+   PRECIO SIN IMPUESTO). Trae el `contadoWeb` de Firebase de cada SKU, recalcula (oferta = web + 15%, anterior =
+   oferta + 15%, ambos redondeados; sin impuesto = web × 1,15 / (1 + IVA) con 2 decimales) y marca los que cambiaron.
+   El Excel descargado es el mismo archivo con esas celdas corregidas: rubros, destacados y colores quedan igual.
+
 Columnas fijas (misma lógica que el Apps Script anterior):
 
 | Columna | Valor |

@@ -4,10 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Generar from "@/components/Generar";
 import Rubros from "@/components/Rubros";
 import Base from "@/components/Base";
+import Revisar from "@/components/Revisar";
 import { guardarAjustes, leerAjustes, listarRubros, resumenBase } from "@/lib/datos";
 import { AJUSTES_DEFAULT, type Ajustes, type Rubro } from "@/lib/types";
 
-type Tab = "generar" | "rubros" | "base";
+type Tab = "generar" | "revisar" | "rubros" | "base";
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("generar");
@@ -71,6 +72,9 @@ export default function Home() {
         <button className={tab === "generar" ? "on" : ""} onClick={() => setTab("generar")}>
           Generar archivo
         </button>
+        <button className={tab === "revisar" ? "on" : ""} onClick={() => setTab("revisar")}>
+          Revisar precios
+        </button>
         <button className={tab === "rubros" ? "on" : ""} onClick={() => setTab("rubros")}>
           Rubros y mapeos ({rubros.length})
         </button>
@@ -94,6 +98,7 @@ export default function Home() {
           irA={setTab}
         />
       )}
+      {tab === "revisar" && <Revisar />}
       {tab === "rubros" && <Rubros rubros={rubros} recargar={recargarRubros} />}
       {tab === "base" && <Base resumen={base} recargar={recargarBase} />}
     </div>
